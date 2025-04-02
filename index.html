@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocaItaliano - Learn Italian Vocabulary</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>VocaItaliano</h1>
+            <p>Master the top 1000 Italian words</p>
+        </header>
+
+        <nav>
+            <button id="vocabulary-btn" class="nav-btn active">Vocabulary List</button>
+            <button id="practice-btn" class="nav-btn">Practice Mode</button>
+            <button id="stats-btn" class="nav-btn">My Progress</button>
+        </nav>
+
+        <!-- Vocabulary List Section -->
+        <section id="vocabulary-section" class="active-section">
+            <div class="controls">
+                <div class="search-container">
+                    <input type="text" id="search-input" placeholder="Search words...">
+                </div>
+                <div class="filter-container">
+                    <select id="type-filter">
+                        <option value="all">All Types</option>
+                        <option value="noun">Nouns</option>
+                        <option value="verb">Verbs</option>
+                        <option value="adjective">Adjectives</option>
+                        <option value="adverb">Adverbs</option>
+                        <option value="preposition">Prepositions</option>
+                        <option value="pronoun">Pronouns</option>
+                        <option value="conjunction">Conjunctions</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="vocabulary-list-container">
+                <table id="vocabulary-table">
+                    <thead>
+                        <tr>
+                            <th>Italian</th>
+                            <th>English</th>
+                            <th>Type</th>
+                            <th>Mastery</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vocabulary-body">
+                        <!-- Words will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Practice Mode Section -->
+        <section id="practice-section">
+            <div class="practice-container">
+                <div id="practice-start" class="practice-card">
+                    <h2>Ready to Practice?</h2>
+                    <p>Test yourself on 20 random Italian words</p>
+                    <div class="practice-options">
+                        <div class="option-group">
+                            <label>Practice focus:</label>
+                            <select id="practice-focus">
+                                <option value="all">All Words</option>
+                                <option value="weak">Words I Struggle With</option>
+                                <option value="new">New Words</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button id="start-practice" class="primary-btn">Start Practice</button>
+                </div>
+
+                <div id="practice-quiz" class="practice-card hidden">
+                    <div class="quiz-progress">
+                        <div id="progress-bar">
+                            <div id="progress-fill"></div>
+                        </div>
+                        <div id="progress-text">1/20</div>
+                    </div>
+                    
+                    <div class="word-card">
+                        <h2 id="quiz-word">Parola</h2>
+                        <p id="word-type">noun</p>
+                    </div>
+
+                    <div id="meaning-hidden" class="meaning-section">
+                        <p>Think about the meaning...</p>
+                        <button id="show-meaning" class="secondary-btn">Show Meaning</button>
+                    </div>
+
+                    <div id="meaning-shown" class="meaning-section hidden">
+                        <p id="quiz-meaning">Word</p>
+                        <div class="response-btns">
+                            <button id="correct-btn" class="success-btn">I Knew It</button>
+                            <button id="incorrect-btn" class="error-btn">Didn't Know</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="practice-results" class="practice-card hidden">
+                    <h2>Practice Complete!</h2>
+                    <div class="results-stats">
+                        <div class="stat">
+                            <span id="correct-count">0</span>
+                            <label>Correct</label>
+                        </div>
+                        <div class="stat">
+                            <span id="incorrect-count">0</span>
+                            <label>Incorrect</label>
+                        </div>
+                    </div>
+                    <div class="results-list">
+                        <h3>Words Reviewed:</h3>
+                        <ul id="results-word-list">
+                            <!-- Results will be filled by JavaScript -->
+                        </ul>
+                    </div>
+                    <button id="practice-again" class="primary-btn">Practice Again</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Progress Stats Section -->
+        <section id="stats-section">
+            <div class="stats-overview">
+                <div class="stat-card">
+                    <h3>Total Words Practiced</h3>
+                    <p id="total-practiced">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Mastery Level</h3>
+                    <p id="mastery-level">0%</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Most Challenging Words</h3>
+                    <ul id="challenging-words">
+                        <!-- Will be filled by JavaScript -->
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mastery-breakdown">
+                <h3>Vocabulary Mastery</h3>
+                <div class="mastery-chart">
+                    <div id="mastered" class="mastery-bar">
+                        <span class="mastery-label">Mastered</span>
+                        <span id="mastered-count" class="mastery-count">0</span>
+                    </div>
+                    <div id="learning" class="mastery-bar">
+                        <span class="mastery-label">Learning</span>
+                        <span id="learning-count" class="mastery-count">0</span>
+                    </div>
+                    <div id="challenging" class="mastery-bar">
+                        <span class="mastery-label">Challenging</span>
+                        <span id="challenging-count" class="mastery-count">0</span>
+                    </div>
+                    <div id="new" class="mastery-bar">
+                        <span class="mastery-label">New</span>
+                        <span id="new-count" class="mastery-count">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="progress-reset">
+                <button id="reset-progress" class="error-btn">Reset Progress</button>
+                <p class="warning-text">This will delete all your saved progress!</p>
+            </div>
+        </section>
+
+        <footer>
+            <p>Created with ❤️ for Italian Learners | <span id="current-year"></span></p>
+        </footer>
+    </div>
+
+    <div id="confirmation-modal" class="modal">
+        <div class="modal-content">
+            <h3>Are you sure?</h3>
+            <p id="modal-message">This action cannot be undone.</p>
+            <div class="modal-buttons">
+                <button id="modal-cancel" class="secondary-btn">Cancel</button>
+                <button id="modal-confirm" class="error-btn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="words.js"></script>
+    <script src="script.js"></script>
+    <script>
+        // Immediately hide the modal on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('confirmation-modal').classList.add('hidden');
+            
+            // Add direct event listener to the cancel button
+            document.getElementById('modal-cancel').addEventListener('click', function() {
+                document.getElementById('confirmation-modal').classList.add('hidden');
+            });
+        });
+        
+        // Immediate execution to hide modal in case DOM is already loaded
+        document.getElementById('confirmation-modal').classList.add('hidden');
+    </script>
+</body>
+</html>
