@@ -45,9 +45,6 @@ function initApp() {
     // Hide the modal on startup to prevent it from showing by default
     confirmationModal.classList.remove('active');
     
-    // Load stored progress
-    loadProgress();
-    
     // Initialize navigation
     initNavigation();
     
@@ -125,41 +122,28 @@ function renderVocabularyList() {
         const row = document.createElement('tr');
         
         const italianCell = document.createElement('td');
-        italianCell.textContent = word.italian;
+        italianCell.textContent = capitalizeFirstLetter(word.italian);
         row.appendChild(italianCell);
         
         const englishCell = document.createElement('td');
-        englishCell.textContent = word.english;
+        englishCell.textContent = capitalizeFirstLetter(word.english);
         row.appendChild(englishCell);
         
-        const typeCell = document.createElement('td');
-        typeCell.textContent = capitalizeFirstLetter(word.type);
-        row.appendChild(typeCell);
-        
         const masteryCell = document.createElement('td');
-        const totalAttempts = word.correct + word.incorrect;
+        const stats = getStats(word.italian);
         
-        if (totalAttempts > 0) {
-            const masteryIndicator = document.createElement('div');
-            masteryIndicator.className = 'mastery-indicator';
-            
-            const masteryPercentage = Math.round((word.correct / totalAttempts) * 100);
-            
-            const masteryFill = document.createElement('div');
-            masteryFill.className = 'mastery-fill';
-            masteryFill.style.width = `${masteryPercentage}%`;
-            
-            masteryIndicator.appendChild(masteryFill);
-            masteryCell.appendChild(masteryIndicator);
-            
-            const masteryText = document.createElement('small');
-            masteryText.textContent = `${masteryPercentage}% (${word.correct}/${totalAttempts})`;
-            masteryCell.appendChild(masteryText);
+        if (stats.total === 0) {
+            masteryCell.innerHTML = '<span class="mastery-badge new">New</span>';
+        } else if (stats.total >= 3 && stats.masteryRatio >= 0.8) {
+            masteryCell.innerHTML = '<span class="mastery-badge mastered">Mastered</span>';
+        } else if (stats.total >= 3 && stats.masteryRatio >= 0.5) {
+            masteryCell.innerHTML = '<span class="mastery-badge learning">Learning</span>';
         } else {
-            masteryCell.textContent = 'No attempts';
+            masteryCell.innerHTML = '<span class="mastery-badge challenging">Challenging</span>';
         }
         
         row.appendChild(masteryCell);
+        
         vocabularyBody.appendChild(row);
     });
 }
@@ -171,15 +155,14 @@ function initSearchAndFilter() {
 }
 
 function filterWords() {
-    const searchTerm = searchInput.value.toLowerCase();
+    const searchTerm = searchInput.value.toLowerCase().trim();
     const typeValue = typeFilter.value;
     
     filteredWords = words.filter(word => {
         const matchesSearch = word.italian.toLowerCase().includes(searchTerm) || 
-                            word.english.toLowerCase().includes(searchTerm);
-        const matchesType = typeValue === 'all' || word.type === typeValue;
-        
-        return matchesSearch && matchesType;
+                             word.english.toLowerCase().includes(searchTerm);
+                             
+        return matchesSearch;
     });
     
     renderVocabularyList();
@@ -197,76 +180,78 @@ function initPracticeMode() {
 function startPractice() {
     const practiceFocus = document.getElementById('practice-focus').value;
     
-    // Select words based on practice focus
-    let practicePool = [...words];
+    let wordsPool = [...words];
     
     if (practiceFocus === 'weak') {
-        // Filter for words with more incorrect answers than correct
-        practicePool = words.filter(word => {
-            const totalAttempts = word.correct + word.incorrect;
-            return totalAttempts > 0 && word.incorrect > word.correct;
+        wordsPool = words.filter(word => {
+            const stats = getStats(word.italian);
+            return stats.total > 0 && stats.incorrect > stats.correct;
         });
         
-        // If not enough words match the criteria, add some random words
-        if (practicePool.length < 20) {
-            const randomWords = words
-                .filter(word => !practicePool.includes(word))
-                .sort(() => 0.5 - Math.random())
-                .slice(0, 20 - practicePool.length);
-            
-            practicePool = [...practicePool, ...randomWords];
+        if (wordsPool.length < 10) {
+            const newWords = getWordsByMastery(words, 'new');
+            wordsPool = [...wordsPool, ...newWords];
         }
     } else if (practiceFocus === 'new') {
-        // Filter for words with no or few attempts
-        practicePool = words.filter(word => {
-            const totalAttempts = word.correct + word.incorrect;
-            return totalAttempts < 3;
-        });
-        
-        // If not enough words match the criteria, add some random words
-        if (practicePool.length < 20) {
-            const randomWords = words
-                .filter(word => !practicePool.includes(word))
-                .sort(() => 0.5 - Math.random())
-                .slice(0, 20 - practicePool.length);
-            
-            practicePool = [...practicePool, ...randomWords];
-        }
+        wordsPool = getWordsByMastery(words, 'new');
     }
     
-    // Shuffle and select 20 words
-    quizWords = practicePool
-        .sort(() => 0.5 - Math.random())
+    quizWords = wordsPool
+        .sort(() => Math.random() - 0.5)
         .slice(0, 20);
+    
+    if (quizWords.length < 20) {
+        const remainingWords = words
+            .filter(word => !quizWords.includes(word))
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 20 - quizWords.length);
+        
+        quizWords = [...quizWords, ...remainingWords];
+    }
     
     currentWordIndex = 0;
     correctCount = 0;
     incorrectCount = 0;
     
-    showQuizCard();
+    document.getElementById('practice-start').classList.add('hidden');
+    document.getElementById('practice-quiz').classList.remove('hidden');
+    document.getElementById('practice-results').classList.add('hidden');
+    
     loadCurrentWord();
+    
+    updateProgress();
 }
 
-function showQuizCard() {
-    practiceStart.classList.add('hidden');
-    practiceResults.classList.add('hidden');
-    practiceQuiz.classList.remove('hidden');
+function updateProgress() {
+    const progressPercentage = (currentWordIndex / quizWords.length) * 100;
+    progressFill.style.width = `${progressPercentage}%`;
+    progressText.textContent = `${currentWordIndex + 1}/${quizWords.length}`;
 }
 
 function loadCurrentWord() {
+    // If we reached the end, show results
+    if (currentWordIndex >= quizWords.length) {
+        showResults();
+        return;
+    }
+    
     const currentWord = quizWords[currentWordIndex];
     
+    // Set the word
     document.getElementById('quiz-word').textContent = currentWord.italian;
-    document.getElementById('word-type').textContent = currentWord.type;
-    document.getElementById('quiz-meaning').textContent = currentWord.english;
     
+    // Show meaning-hidden and hide meaning-shown
     document.getElementById('meaning-hidden').classList.remove('hidden');
     document.getElementById('meaning-shown').classList.add('hidden');
     
+    // Update quiz meaning
+    document.getElementById('quiz-meaning').textContent = currentWord.english;
+    
+    // Hide the word type since it's no longer used
+    document.getElementById('word-type').classList.add('hidden');
+    
     // Update progress
-    const progressPercentage = ((currentWordIndex + 1) / quizWords.length) * 100;
-    progressFill.style.width = `${progressPercentage}%`;
-    progressText.textContent = `${currentWordIndex + 1}/${quizWords.length}`;
+    updateProgress();
 }
 
 function showMeaning() {
@@ -277,28 +262,17 @@ function showMeaning() {
 function recordAnswer(isCorrect) {
     const currentWord = quizWords[currentWordIndex];
     
-    // Find the word in the original array and update its score
-    const wordIndex = words.findIndex(word => word.italian === currentWord.italian);
-    
     if (isCorrect) {
-        words[wordIndex].correct++;
         correctCount++;
+        recordCorrect(currentWord.italian);
     } else {
-        words[wordIndex].incorrect++;
         incorrectCount++;
+        recordIncorrect(currentWord.italian);
     }
     
-    // Save progress
-    saveProgress();
-    
-    // Move to next word or show results
     currentWordIndex++;
-    
-    if (currentWordIndex < quizWords.length) {
-        loadCurrentWord();
-    } else {
-        showResults();
-    }
+    updateProgress();
+    loadCurrentWord();
 }
 
 function showResults() {
@@ -343,33 +317,34 @@ function resetPractice() {
 
 // Stats functions
 function updateStats() {
-    // Calculate total words practiced
-    const practicedWords = words.filter(word => word.correct + word.incorrect > 0);
-    document.getElementById('total-practiced').textContent = practicedWords.length;
+    let totalPracticed = 0;
+    let totalCorrect = 0;
+    let totalIncorrect = 0;
     
-    // Calculate mastery level
-    const totalAttempts = words.reduce((sum, word) => sum + word.correct + word.incorrect, 0);
-    const totalCorrect = words.reduce((sum, word) => sum + word.correct, 0);
+    words.forEach(word => {
+        const stats = getStats(word.italian);
+        if (stats.total > 0) {
+            totalPracticed++;
+            totalCorrect += stats.correct;
+            totalIncorrect += stats.incorrect;
+        }
+    });
+    
+    document.getElementById('total-practiced').textContent = totalPracticed;
+    
     let masteryPercentage = 0;
     
-    if (totalAttempts > 0) {
-        masteryPercentage = Math.round((totalCorrect / totalAttempts) * 100);
+    if (totalPracticed > 0) {
+        const masteredWords = getWordsByMastery(words, 'mastered').length;
+        masteryPercentage = Math.round((masteredWords / words.length) * 100);
     }
     
     document.getElementById('mastery-level').textContent = `${masteryPercentage}%`;
     
-    // Find challenging words
     const challengingWordsList = document.getElementById('challenging-words');
     challengingWordsList.innerHTML = '';
     
-    const challengingWords = words
-        .filter(word => word.correct + word.incorrect >= 3 && word.incorrect > word.correct)
-        .sort((a, b) => {
-            const aRatio = a.correct / (a.correct + a.incorrect);
-            const bRatio = b.correct / (b.correct + b.incorrect);
-            return aRatio - bRatio;
-        })
-        .slice(0, 5);
+    const challengingWords = getChallengingWords(words, 5);
     
     if (challengingWords.length > 0) {
         challengingWords.forEach(word => {
@@ -383,33 +358,16 @@ function updateStats() {
         challengingWordsList.appendChild(listItem);
     }
     
-    // Update mastery breakdown
-    const masteredCount = words.filter(word => {
-        const total = word.correct + word.incorrect;
-        return total >= 3 && (word.correct / total) >= 0.8;
-    }).length;
-    
-    const learningCount = words.filter(word => {
-        const total = word.correct + word.incorrect;
-        return total >= 3 && (word.correct / total) >= 0.5 && (word.correct / total) < 0.8;
-    }).length;
-    
-    const challengingCount = words.filter(word => {
-        const total = word.correct + word.incorrect;
-        return total >= 3 && (word.correct / total) < 0.5;
-    }).length;
-    
-    const newCount = words.filter(word => {
-        const total = word.correct + word.incorrect;
-        return total < 3;
-    }).length;
+    const masteredCount = getWordsByMastery(words, 'mastered').length;
+    const learningCount = getWordsByMastery(words, 'learning').length;
+    const challengingCount = getWordsByMastery(words, 'challenging').length;
+    const newCount = getWordsByMastery(words, 'new').length;
     
     document.getElementById('mastered-count').textContent = masteredCount;
     document.getElementById('learning-count').textContent = learningCount;
     document.getElementById('challenging-count').textContent = challengingCount;
     document.getElementById('new-count').textContent = newCount;
     
-    // Update mastery bars width
     const totalWords = words.length;
     document.getElementById('mastered').style.width = `${(masteredCount / totalWords) * 100}%`;
     document.getElementById('learning').style.width = `${(learningCount / totalWords) * 100}%`;
@@ -419,29 +377,13 @@ function updateStats() {
 
 // Progress persistence functions
 function saveProgress() {
-    localStorage.setItem('vocaItaliano', JSON.stringify(words));
+    // This is now handled by the progress.js module
+    // No action needed here, as it's called from the progress module
 }
 
 function loadProgress() {
-    const savedProgress = localStorage.getItem('vocaItaliano');
-    
-    if (savedProgress) {
-        const savedWords = JSON.parse(savedProgress);
-        
-        // Update the words array with saved progress
-        words.forEach((word, index) => {
-            // Find matching word in saved progress
-            const savedWord = savedWords.find(saved => saved.italian === word.italian);
-            
-            if (savedWord) {
-                word.correct = savedWord.correct || 0;
-                word.incorrect = savedWord.incorrect || 0;
-            }
-        });
-    }
-    
-    // Initialize filtered words
-    filteredWords = [...words];
+    // The progress module already loads progress when the page loads
+    // No action needed here
 }
 
 function confirmResetProgress() {
@@ -451,12 +393,8 @@ function confirmResetProgress() {
 }
 
 function resetProgress() {
-    words.forEach(word => {
-        word.correct = 0;
-        word.incorrect = 0;
-    });
+    resetAllProgress(); // Using the function from progress.js
     
-    saveProgress();
     renderVocabularyList();
     updateStats();
 }
